@@ -8,6 +8,13 @@ This is a small application that scrapes course calendar feeds from Google Calen
 2. For each available calendar, it decodes the Google Calendar URL and downloads the ICalendar feed
 3. An API service parses the downloaded ICal feeds and returns events from it
 
+## Motivation
+The IITM BS program has multiple courses, each with their own Google Calendar. It quickly becomes cumbersome to manage all these separate calendars: finding the URLs, adding them manually to your personal calendar, removing them when the term ends etc.
+
+This application aims to simplify this process by aggregating all course calendars in one place. Users can select which courses they're enrolled in and view all their academic events in a unified interface.
+
+Future plans include developing a user authentication system so students can log in once, select their courses, and have everything automatically sync with their personal Google Calendar. This will eliminate the need to manually manage multiple calendar subscriptions and ensure students always have the most up-to-date schedule information.
+
 ## Setup Instructions
 
 ```bash
@@ -74,8 +81,6 @@ A downloadable .ics file containing all events from the selected courses.
 ```
 /export.ics?cid=1&cid=2&name=My%20IITM%20Calendar
 ```
-
-This endpoint allows you to combine multiple course calendars into a single calendar file that can be imported into Google Calendar, Apple Calendar, Microsoft Outlook, or any other application that supports the ICalendar format.
 
 ## License
 
