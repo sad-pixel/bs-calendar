@@ -6,8 +6,10 @@ from typing import Annotated, List, Optional
 import icalendar
 import recurring_ical_events
 import uvicorn
-from fastapi import FastAPI, Query, Response
+from fastapi import FastAPI, Query, Request, Response
+from fastapi.datastructures import QueryParams
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 app = FastAPI(
@@ -15,6 +17,37 @@ app = FastAPI(
     description="Calendar aggregator for IITM BS Degree",
     version="1.0.0",
 )
+
+origins = ["http://localhost", "http://localhost:5173", "http://localhost:8000"]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# This is a bad hack, but i did it anyway because Orval is used for typed client generation
+# in the front end, and it uses bracket notation for array params.
+# https://github.com/fastapi/fastapi/discussions/7827#discussioncomment-8268910
+@app.middleware("http")
+async def fix_list_query_params(request: Request, call_next):
+    # Rails / some libs put square brackets on list parameters. FastAPI does not use the square brackets.
+    def fix_key(key: str):
+        print(key)
+        if key and key.endswith("[]"):
+            key = key[:-2]
+        return key
+
+    request._query_params = QueryParams(
+        [(fix_key(key), value) for key, value in request.query_params.multi_items()]
+    )
+    request.scope["query_string"] = str(request.query_params)
+    request.scope["query_string"] = bytes(str(request.scope["query_string"]), "ascii")
+    response = await call_next(request)
+    return response
 
 
 class Course(BaseModel):
