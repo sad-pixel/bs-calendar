@@ -1,16 +1,17 @@
-import csv
 import datetime
-import os
 from typing import Annotated, List, Optional
 
 import icalendar
 import recurring_ical_events
 import uvicorn
-from fastapi import FastAPI, Query, Request, Response
-from fastapi.datastructures import QueryParams
+from fastapi import Depends, FastAPI, Query, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+
+from db.connection import get_querier
+from db.queries import Querier
+from middleware import FixListQueryParamsMiddleware
 
 app = FastAPI(
     title="BS Calendar",
@@ -27,55 +28,24 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-# This is a bad hack, but i did it anyway because Orval is used for typed client generation
-# in the front end, and it uses bracket notation for array params.
-# https://github.com/fastapi/fastapi/discussions/7827#discussioncomment-8268910
-@app.middleware("http")
-async def fix_list_query_params(request: Request, call_next):
-    # Rails / some libs put square brackets on list parameters. FastAPI does not use the square brackets.
-    def fix_key(key: str):
-        print(key)
-        if key and key.endswith("[]"):
-            key = key[:-2]
-        return key
-
-    request._query_params = QueryParams(
-        [(fix_key(key), value) for key, value in request.query_params.multi_items()]
-    )
-    request.scope["query_string"] = str(request.query_params)
-    request.scope["query_string"] = bytes(str(request.scope["query_string"]), "ascii")
-    response = await call_next(request)
-    return response
+app.add_middleware(FixListQueryParamsMiddleware)
 
 
 class Course(BaseModel):
-    id: int
+    id: str
     name: str
-    google_calendar_link: str
-    is_synced: bool
+    level: str
+    calendar_available: bool
+    last_sync_at: Optional[datetime.datetime]
 
 
-@app.get("/courses", response_model=List[Course])
-def get_courses():
-    csvfile = open("calendars.csv", "r")
-    reader = csv.reader(csvfile)
-    next(reader, None)
-
-    return [
-        {
-            "id": int(row[0]),
-            "name": row[1],
-            "google_calendar_link": row[2],
-            "is_synced": os.path.exists(f"cals/{row[0]}.ics"),
-        }
-        for row in reader
-    ]
+@app.get("/api/courses", response_model=List[Course])
+def get_courses(querier: Querier = Depends(get_querier)):
+    return querier.get_courses_list()
 
 
 class EventFilter(BaseModel):
-    cid: List[int]
+    cid: List[str]
     start_at: datetime.date
     end_at: datetime.date
 
@@ -103,44 +73,57 @@ class Event(BaseModel):
     id: str
     title: str
     description: Optional[str]
-    calendar_id: int
+    calendar_id: str
     start_at: datetime.datetime
     end_at: Optional[datetime.datetime]
 
 
-@app.get("/events", response_model=List[Event])
-def get_events(filter_params: Annotated[EventFilter, Query()]):
+def fetch_calendar(querier: Querier, course_id: str):
+    feed_data = querier.get_course_i_cal(course_id=course_id)
+    if not feed_data:
+        return None
+
+    return icalendar.Calendar.from_ical(feed_data)
+
+
+@app.get("/api/events", response_model=List[Event])
+def get_events(
+    filter_params: Annotated[EventFilter, Query()],
+    querier: Querier = Depends(get_querier),
+):
     all_events = []
     for calendar_id in filter_params.cid:
-        if not os.path.exists(f"cals/{calendar_id}.ics"):
+        ical_feed = fetch_calendar(querier, calendar_id)
+        if not ical_feed:
             continue
 
-        with open(f"cals/{calendar_id}.ics", "r") as calendar_file:
-            ical_feed = icalendar.Calendar.from_ical(calendar_file.read())
-            events = [
-                {
-                    "title": e.get("SUMMARY"),
-                    "start_at": e.get("DTSTART").dt,
-                    "end_at": e.get("DTEND").dt,
-                    "description": e.get("DESCRIPTION"),
-                    "id": e.get("UID"),
-                    "calendar_id": calendar_id,
-                }
-                for e in recurring_ical_events.of(
-                    ical_feed, keep_recurrence_attributes=True
-                ).between(filter_params.start_at, filter_params.end_at)
-            ]
-            all_events = all_events + events
+        events = [
+            {
+                "title": e.get("SUMMARY"),
+                "start_at": e.get("DTSTART").dt,
+                "end_at": e.get("DTEND").dt,
+                "description": e.get("DESCRIPTION"),
+                "id": e.get("UID"),
+                "calendar_id": calendar_id,
+            }
+            for e in recurring_ical_events.of(
+                ical_feed, keep_recurrence_attributes=True
+            ).between(filter_params.start_at, filter_params.end_at)
+        ]
+        all_events = all_events + events
     return all_events
 
 
 class ExportFilter(BaseModel):
-    cid: List[int]
+    cid: List[str]
     name: str = "Exported Calendar"
 
 
-@app.get("/export.ics", response_class=Response)
-def export_calendar(filter_params: Annotated[ExportFilter, Query()]):
+@app.get("/api/export.ics", response_class=Response)
+def export_calendar(
+    filter_params: Annotated[ExportFilter, Query()],
+    querier: Querier = Depends(get_querier),
+):
     cal = icalendar.Calendar()
     cal["PRODID"] = "BSCalendar v1.0"
     cal["X-WR-CALNAME"] = filter_params.name
@@ -148,13 +131,12 @@ def export_calendar(filter_params: Annotated[ExportFilter, Query()]):
     cal.calendar_name = filter_params.name
 
     for calendar_id in filter_params.cid:
-        if not os.path.exists(f"cals/{calendar_id}.ics"):
+        ical_feed = fetch_calendar(querier, calendar_id)
+        if not ical_feed:
             continue
 
-        with open(f"cals/{calendar_id}.ics", "r") as calendar_file:
-            ical_feed = icalendar.Calendar.from_ical(calendar_file.read())
-            for event in ical_feed.events:  # pyright: ignore[reportAttributeAccessIssue]
-                cal.add_component(event)
+        for event in ical_feed.events:  # pyright: ignore[reportAttributeAccessIssue]
+            cal.add_component(event)
 
     return Response(cal.to_ical(), media_type="text/calendar")
 
