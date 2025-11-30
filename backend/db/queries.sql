@@ -37,3 +37,29 @@ SET ics_string = @ics_string;
 SELECT ics_string
 FROM calendars
 WHERE course_id = @course_id;
+
+-- name: LoginUser :one
+INSERT INTO users (
+    first_name,
+    last_name,
+    email,
+    last_login_at
+)
+VALUES (
+    @first_name,
+    @last_name,
+    @email,
+    CURRENT_TIMESTAMP
+)
+ON CONFLICT (email) DO UPDATE
+SET
+    first_name = @first_name,
+    last_name = @last_name,
+    last_login_at = CURRENT_TIMESTAMP
+RETURNING
+    id,
+    first_name,
+    last_name,
+    email,
+    last_login_at,
+    last_calendar_sync_at;

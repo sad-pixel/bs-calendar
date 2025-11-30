@@ -10,13 +10,14 @@ import icalendar
 import recurring_ical_events
 import requests as r
 import uvicorn
-from fastapi import Depends, FastAPI, Query, Response
+from fastapi import Depends, FastAPI, Query, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from google.auth.transport import requests
 from google.oauth2 import id_token
 from pydantic import BaseModel
+from starlette.middleware.sessions import SessionMiddleware
 
 from config import settings
 from db.connection import get_querier
@@ -39,6 +40,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.add_middleware(FixListQueryParamsMiddleware)
+app.add_middleware(SessionMiddleware, same_site="none", secret_key=settings.secret_key)
+
+
+@app.get("/api/me")
+def get_me(request: Request):
+    return {"user_id": request.session.get("user_id", None)}
 
 
 class Course(BaseModel):
@@ -153,7 +160,7 @@ def export_calendar(
 
 
 @app.get("/api/auth-login")
-def google_auth_login():
+def google_auth_login(request: Request):
     """
     Returns the URL to redirect users to for Google OAuth login
     Implements PKCE flow for added security
@@ -167,11 +174,10 @@ def google_auth_login():
     code_challenge = base64.urlsafe_b64encode(code_challenge).decode("utf-8")
     code_challenge = code_challenge.replace("=", "")  # Remove padding
 
-    # Store code_verifier in session or as a cookie
-    # For this example, we'll include it in the state parameter
     state = base64.urlsafe_b64encode(
         json.dumps({"code_verifier": code_verifier}).encode()
     ).decode("utf-8")
+    request.session["oauth_state"] = state
 
     # Build OAuth URL with PKCE parameters
     params = {
@@ -180,7 +186,6 @@ def google_auth_login():
         "scope": "openid email profile",
         "redirect_uri": settings.google_redirect_url,
         "prompt": "select_account",
-        "state": state,
         "code_challenge": code_challenge,
         "code_challenge_method": "S256",
     }
@@ -193,15 +198,19 @@ def google_auth_login():
 
 
 @app.get("/api/auth-redirect")
-async def google_auth_redirect(code: str, state: str = None):
+async def google_auth_redirect(
+    request: Request, code: str, querier: Querier = Depends(get_querier)
+):
     """
     Handles the redirect from Google OAuth
     Exchanges authorization code for tokens using PKCE
     """
     # Extract code_verifier from state
     try:
+        state = request.session.get("oauth_state", "")
         decoded_state = json.loads(base64.urlsafe_b64decode(state).decode("utf-8"))
         code_verifier = decoded_state.get("code_verifier")
+        del request.session["oauth_state"]
     except:
         return {"error": "Invalid state parameter"}
 
@@ -226,6 +235,13 @@ async def google_auth_redirect(code: str, state: str = None):
     id_token_value = token_response.get("id_token")
     user_data = id_token.verify_oauth2_token(
         id_token_value, requests.Request(), settings.google_client_id
+    )
+
+    request.session["user_id"] = user_data.get("email", None)
+    querier.login_user(
+        first_name=user_data.get("given_name"),
+        last_name=user_data.get("family_name"),
+        email=user_data.get("email"),
     )
 
     # Return user info as JSON

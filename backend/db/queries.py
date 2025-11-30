@@ -58,6 +58,35 @@ class GetCoursesListRow:
     last_sync_at: Optional[str]
 
 
+LOGIN_USER = """-- name: login_user \\:one
+INSERT INTO users (
+    first_name,
+    last_name,
+    email,
+    last_login_at
+)
+VALUES (
+    :p1,
+    :p2,
+    :p3,
+    CURRENT_TIMESTAMP
+)
+ON CONFLICT (email) DO UPDATE
+SET
+    first_name = :p1,
+    last_name = :p2,
+    last_login_at = CURRENT_TIMESTAMP
+RETURNING
+    id,
+    first_name,
+    last_name,
+    email,
+    calendar_token,
+    last_login_at,
+    last_calendar_sync_at
+"""
+
+
 UPDATE_CALENDAR_SYNC_STATUS = """-- name: update_calendar_sync_status \\:exec
 UPDATE courses
 SET
@@ -103,6 +132,20 @@ class Querier:
                 calendar_available=row[3],
                 last_sync_at=row[4],
             )
+
+    def login_user(self, *, first_name: Optional[str], last_name: Optional[str], email: Optional[str]) -> Optional[models.User]:
+        row = self._conn.execute(sqlalchemy.text(LOGIN_USER), {"p1": first_name, "p2": last_name, "p3": email}).first()
+        if row is None:
+            return None
+        return models.User(
+            id=row[0],
+            first_name=row[1],
+            last_name=row[2],
+            email=row[3],
+            calendar_token=row[4],
+            last_login_at=row[5],
+            last_calendar_sync_at=row[6],
+        )
 
     def update_calendar_sync_status(self, *, last_sync_at: Optional[str], last_sync_http_status: Optional[int], id: str) -> None:
         self._conn.execute(sqlalchemy.text(UPDATE_CALENDAR_SYNC_STATUS), {"p1": last_sync_at, "p2": last_sync_http_status, "p3": id})

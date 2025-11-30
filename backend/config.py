@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     google_client_secret: str = ""
     google_redirect_url: str = ""
     database_dsn: str = ""
+    secret_key: str = ""
     port: int = 8000
     host: str = "0.0.0.0"
 
