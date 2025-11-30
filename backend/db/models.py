@@ -33,6 +33,7 @@ class User:
     id: int
     first_name: Optional[str]
     last_name: Optional[str]
+    picture: Optional[str]
     email: Optional[str]
     calendar_token: Optional[str]
     last_login_at: Optional[str]

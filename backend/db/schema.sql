@@ -19,6 +19,7 @@ CREATE TABLE users (
     id INTEGER PRIMARY KEY,
     first_name TEXT,
     last_name TEXT,
+    picture TEXT,
     email TEXT UNIQUE,
     calendar_token TEXT UNIQUE,
     last_login_at TEXT,

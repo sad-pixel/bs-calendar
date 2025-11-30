@@ -1,7 +1,9 @@
 import { Navbar } from "./Navbar";
 import { Route } from "wouter";
-import { CoursesPage } from "./pages/CoursesPage";
-import { CalendarPage } from "./pages/CalendarPage";
+import { CoursesPage } from "@/components/pages/CoursesPage";
+import { CalendarPage } from "@/components/pages/CalendarPage";
+import { HomePage } from "@/components/pages/HomePage";
+
 function MainComponent() {
   return (
     <div className="flex flex-col">
@@ -10,7 +12,7 @@ function MainComponent() {
       </header>
       <main className="flex-1 container mx-auto px-4 py-8">
         <div>
-          <Route path="/">Home Page Content</Route>
+          <Route path="/" component={HomePage} />
           <Route path="/about">About Page Content</Route>
           <Route path="/courses" component={CoursesPage} />
           <Route path="/calendar" component={CalendarPage} />

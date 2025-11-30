@@ -43,23 +43,38 @@ INSERT INTO users (
     first_name,
     last_name,
     email,
+    picture,
     last_login_at
 )
 VALUES (
     @first_name,
     @last_name,
     @email,
+    @picture,
     CURRENT_TIMESTAMP
 )
 ON CONFLICT (email) DO UPDATE
 SET
     first_name = @first_name,
     last_name = @last_name,
+    picture = @picture,
     last_login_at = CURRENT_TIMESTAMP
 RETURNING
     id,
     first_name,
     last_name,
     email,
+    picture,
     last_login_at,
     last_calendar_sync_at;
+
+-- name: FetchUser :one
+SELECT
+    first_name,
+    last_name,
+    picture,
+    email
+FROM
+    users
+WHERE
+    email = @user_id LIMIT 1;

@@ -21,7 +21,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from config import settings
 from db.connection import get_querier
-from db.queries import Querier
+from db.queries import FetchUserRow, Querier
 from middleware import FixListQueryParamsMiddleware
 
 app = FastAPI(
@@ -30,7 +30,11 @@ app = FastAPI(
     version="1.0.0",
 )
 
-origins = ["http://localhost", "http://localhost:5173", "http://localhost:8000"]
+origins = [
+    "http://localhost",
+    "http://localhost:5173",
+    "http://localhost:8000",
+]
 
 app.add_middleware(
     CORSMiddleware,
@@ -40,12 +44,32 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.add_middleware(FixListQueryParamsMiddleware)
-app.add_middleware(SessionMiddleware, same_site="none", secret_key=settings.secret_key)
+app.add_middleware(
+    SessionMiddleware,
+    same_site="none",
+    secret_key=settings.secret_key,
+    https_only=False,
+)
 
 
-@app.get("/api/me")
-def get_me(request: Request):
-    return {"user_id": request.session.get("user_id", None)}
+def get_user(request: Request, querier: Querier = Depends(get_querier)):
+    user_id = request.session.get("user_id", None)
+    if not user_id:
+        return None
+
+    return querier.fetch_user(user_id=user_id)
+
+
+class Me(BaseModel):
+    authenticated: bool
+    user: FetchUserRow | None = None
+
+
+@app.get("/api/me", response_model=Me)
+def get_me(request: Request, user=Depends(get_user)):
+    if user:
+        return {"authenticated": True, "user": user}
+    return {"authenticated": False}
 
 
 class Course(BaseModel):
@@ -242,6 +266,7 @@ async def google_auth_redirect(
         first_name=user_data.get("given_name"),
         last_name=user_data.get("family_name"),
         email=user_data.get("email"),
+        picture=user_data.get("picture"),
     )
 
     # Return user info as JSON

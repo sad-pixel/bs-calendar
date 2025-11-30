@@ -43,8 +43,30 @@ export interface Event {
   end_at: EventEndAt;
 }
 
+export type FetchUserRowFirstName = string | null;
+
+export type FetchUserRowLastName = string | null;
+
+export type FetchUserRowPicture = string | null;
+
+export type FetchUserRowEmail = string | null;
+
+export interface FetchUserRow {
+  first_name: FetchUserRowFirstName;
+  last_name: FetchUserRowLastName;
+  picture: FetchUserRowPicture;
+  email: FetchUserRowEmail;
+}
+
 export interface HTTPValidationError {
   detail?: ValidationError[];
+}
+
+export type MeUser = FetchUserRow | null;
+
+export interface Me {
+  authenticated: boolean;
+  user?: MeUser;
 }
 
 export type ValidationErrorLocItem = string | number;
@@ -68,10 +90,140 @@ export type ExportCalendarApiExportIcsGetParams = {
 
 export type GoogleAuthRedirectApiAuthRedirectGetParams = {
   code: string;
-  state?: string;
 };
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+
+/**
+ * @summary Get Me
+ */
+export const getMeApiMeGet = (
+  options?: SecondParameter<typeof api>,
+  signal?: AbortSignal,
+) => {
+  return api<Me>({ url: `/api/me`, method: "GET", signal }, options);
+};
+
+export const getGetMeApiMeGetQueryKey = () => {
+  return [`/api/me`] as const;
+};
+
+export const getGetMeApiMeGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMeApiMeGet>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<Awaited<ReturnType<typeof getMeApiMeGet>>, TError, TData>
+  >;
+  request?: SecondParameter<typeof api>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetMeApiMeGetQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getMeApiMeGet>>> = ({
+    signal,
+  }) => getMeApiMeGet(requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMeApiMeGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetMeApiMeGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMeApiMeGet>>
+>;
+export type GetMeApiMeGetQueryError = ErrorType<unknown>;
+
+export function useGetMeApiMeGet<
+  TData = Awaited<ReturnType<typeof getMeApiMeGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getMeApiMeGet>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMeApiMeGet>>,
+          TError,
+          Awaited<ReturnType<typeof getMeApiMeGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof api>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetMeApiMeGet<
+  TData = Awaited<ReturnType<typeof getMeApiMeGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getMeApiMeGet>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMeApiMeGet>>,
+          TError,
+          Awaited<ReturnType<typeof getMeApiMeGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof api>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetMeApiMeGet<
+  TData = Awaited<ReturnType<typeof getMeApiMeGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getMeApiMeGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof api>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Get Me
+ */
+
+export function useGetMeApiMeGet<
+  TData = Awaited<ReturnType<typeof getMeApiMeGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getMeApiMeGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof api>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getGetMeApiMeGetQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
 
 /**
  * @summary Get Courses

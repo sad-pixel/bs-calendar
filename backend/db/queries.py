@@ -10,6 +10,27 @@ import sqlalchemy
 from db import models
 
 
+FETCH_USER = """-- name: fetch_user \\:one
+SELECT
+    first_name,
+    last_name,
+    picture,
+    email
+FROM
+    users
+WHERE
+    email = :p1 LIMIT 1
+"""
+
+
+@dataclasses.dataclass()
+class FetchUserRow:
+    first_name: Optional[str]
+    last_name: Optional[str]
+    picture: Optional[str]
+    email: Optional[str]
+
+
 GET_ALL_COURSE_CALENDARS = """-- name: get_all_course_calendars \\:many
 SELECT
     id,
@@ -63,28 +84,42 @@ INSERT INTO users (
     first_name,
     last_name,
     email,
+    picture,
     last_login_at
 )
 VALUES (
     :p1,
     :p2,
     :p3,
+    :p4,
     CURRENT_TIMESTAMP
 )
 ON CONFLICT (email) DO UPDATE
 SET
     first_name = :p1,
     last_name = :p2,
+    picture = :p4,
     last_login_at = CURRENT_TIMESTAMP
 RETURNING
     id,
     first_name,
     last_name,
     email,
-    calendar_token,
+    picture,
     last_login_at,
     last_calendar_sync_at
 """
+
+
+@dataclasses.dataclass()
+class LoginUserRow:
+    id: int
+    first_name: Optional[str]
+    last_name: Optional[str]
+    email: Optional[str]
+    picture: Optional[str]
+    last_login_at: Optional[str]
+    last_calendar_sync_at: Optional[str]
 
 
 UPDATE_CALENDAR_SYNC_STATUS = """-- name: update_calendar_sync_status \\:exec
@@ -107,6 +142,17 @@ SET ics_string = :p2
 class Querier:
     def __init__(self, conn: sqlalchemy.engine.Connection):
         self._conn = conn
+
+    def fetch_user(self, *, user_id: Optional[str]) -> Optional[FetchUserRow]:
+        row = self._conn.execute(sqlalchemy.text(FETCH_USER), {"p1": user_id}).first()
+        if row is None:
+            return None
+        return FetchUserRow(
+            first_name=row[0],
+            last_name=row[1],
+            picture=row[2],
+            email=row[3],
+        )
 
     def get_all_course_calendars(self) -> Iterator[GetAllCourseCalendarsRow]:
         result = self._conn.execute(sqlalchemy.text(GET_ALL_COURSE_CALENDARS))
@@ -133,16 +179,21 @@ class Querier:
                 last_sync_at=row[4],
             )
 
-    def login_user(self, *, first_name: Optional[str], last_name: Optional[str], email: Optional[str]) -> Optional[models.User]:
-        row = self._conn.execute(sqlalchemy.text(LOGIN_USER), {"p1": first_name, "p2": last_name, "p3": email}).first()
+    def login_user(self, *, first_name: Optional[str], last_name: Optional[str], email: Optional[str], picture: Optional[str]) -> Optional[LoginUserRow]:
+        row = self._conn.execute(sqlalchemy.text(LOGIN_USER), {
+            "p1": first_name,
+            "p2": last_name,
+            "p3": email,
+            "p4": picture,
+        }).first()
         if row is None:
             return None
-        return models.User(
+        return LoginUserRow(
             id=row[0],
             first_name=row[1],
             last_name=row[2],
             email=row[3],
-            calendar_token=row[4],
+            picture=row[4],
             last_login_at=row[5],
             last_calendar_sync_at=row[6],
         )

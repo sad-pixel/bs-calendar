@@ -24,6 +24,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { useGetMeApiMeGet } from "@/lib/api/endpoints";
 
 interface MenuItem {
   title: string;
@@ -65,6 +66,8 @@ const Navbar = ({
     login: { title: "Login", url: "#" },
   },
 }: Navbar1Props) => {
+  const { data: user, isLoading: isLoadingUser } = useGetMeApiMeGet();
+
   return (
     <section className="py-4">
       <div className="container">
@@ -91,9 +94,29 @@ const Navbar = ({
             </div>
           </div>
           <div className="flex gap-2">
-            <Button asChild size="sm">
-              <Link href={auth.login.url}>{auth.login.title}</Link>
-            </Button>
+            {isLoadingUser ? (
+              <Button size="sm" disabled>
+                <span className="animate-spin mr-2">⏳</span>
+                Loading...
+              </Button>
+            ) : user?.authenticated ? (
+              <div className="flex items-center gap-2 px-3 py-1 text-sm rounded-md bg-muted">
+                {user.user?.picture && (
+                  <img
+                    src={user.user.picture}
+                    alt="Avatar"
+                    className="w-6 h-6 rounded-full"
+                  />  
+                )}
+                <span className="font-medium">
+                  {user.user?.first_name} {user.user?.last_name}
+                </span>
+              </div>
+            ) : (
+              <Button asChild size="sm">
+                <Link href={auth.login.url}>{auth.login.title}</Link>
+              </Button>
+            )}
           </div>
         </nav>
 

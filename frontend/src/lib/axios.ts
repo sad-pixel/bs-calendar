@@ -1,7 +1,8 @@
 import axios, { type AxiosRequestConfig, AxiosError } from "axios";
 
 export const AXIOS_INSTANCE = axios.create({
-  baseURL: "http://127.0.0.1:8000",
+  baseURL: "http://localhost:8000",
+  withCredentials: true,
 });
 
 // Custom instance for orval-generated queries
