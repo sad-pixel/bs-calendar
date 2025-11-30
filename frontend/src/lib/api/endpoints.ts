@@ -20,11 +20,14 @@ import type {
 
 import { api } from "../axios";
 import type { ErrorType } from "../axios";
+export type CourseLastSyncAt = string | null;
+
 export interface Course {
-  id: number;
+  id: string;
   name: string;
-  google_calendar_link: string;
-  is_synced: boolean;
+  level: string;
+  calendar_available: boolean;
+  last_sync_at: CourseLastSyncAt;
 }
 
 export type EventDescription = string | null;
@@ -35,7 +38,7 @@ export interface Event {
   id: string;
   title: string;
   description: EventDescription;
-  calendar_id: number;
+  calendar_id: string;
   start_at: string;
   end_at: EventEndAt;
 }
@@ -52,15 +55,20 @@ export interface ValidationError {
   type: string;
 }
 
-export type GetEventsEventsGetParams = {
-  cid: number[];
+export type GetEventsApiEventsGetParams = {
+  cid: string[];
   start_at: string;
   end_at: string;
 };
 
-export type ExportCalendarExportIcsGetParams = {
-  cid: number[];
+export type ExportCalendarApiExportIcsGetParams = {
+  cid: string[];
   name?: string;
+};
+
+export type GoogleAuthRedirectApiAuthRedirectGetParams = {
+  code: string;
+  state?: string;
 };
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
@@ -68,24 +76,24 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 /**
  * @summary Get Courses
  */
-export const getCoursesCoursesGet = (
+export const getCoursesApiCoursesGet = (
   options?: SecondParameter<typeof api>,
   signal?: AbortSignal,
 ) => {
-  return api<Course[]>({ url: `/courses`, method: "GET", signal }, options);
+  return api<Course[]>({ url: `/api/courses`, method: "GET", signal }, options);
 };
 
-export const getGetCoursesCoursesGetQueryKey = () => {
-  return [`/courses`] as const;
+export const getGetCoursesApiCoursesGetQueryKey = () => {
+  return [`/api/courses`] as const;
 };
 
-export const getGetCoursesCoursesGetQueryOptions = <
-  TData = Awaited<ReturnType<typeof getCoursesCoursesGet>>,
+export const getGetCoursesApiCoursesGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof getCoursesApiCoursesGet>>,
   TError = ErrorType<unknown>,
 >(options?: {
   query?: Partial<
     UseQueryOptions<
-      Awaited<ReturnType<typeof getCoursesCoursesGet>>,
+      Awaited<ReturnType<typeof getCoursesApiCoursesGet>>,
       TError,
       TData
     >
@@ -94,41 +102,42 @@ export const getGetCoursesCoursesGetQueryOptions = <
 }) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getGetCoursesCoursesGetQueryKey();
+  const queryKey =
+    queryOptions?.queryKey ?? getGetCoursesApiCoursesGetQueryKey();
 
   const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof getCoursesCoursesGet>>
-  > = ({ signal }) => getCoursesCoursesGet(requestOptions, signal);
+    Awaited<ReturnType<typeof getCoursesApiCoursesGet>>
+  > = ({ signal }) => getCoursesApiCoursesGet(requestOptions, signal);
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof getCoursesCoursesGet>>,
+    Awaited<ReturnType<typeof getCoursesApiCoursesGet>>,
     TError,
     TData
   > & { queryKey: DataTag<QueryKey, TData, TError> };
 };
 
-export type GetCoursesCoursesGetQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getCoursesCoursesGet>>
+export type GetCoursesApiCoursesGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getCoursesApiCoursesGet>>
 >;
-export type GetCoursesCoursesGetQueryError = ErrorType<unknown>;
+export type GetCoursesApiCoursesGetQueryError = ErrorType<unknown>;
 
-export function useGetCoursesCoursesGet<
-  TData = Awaited<ReturnType<typeof getCoursesCoursesGet>>,
+export function useGetCoursesApiCoursesGet<
+  TData = Awaited<ReturnType<typeof getCoursesApiCoursesGet>>,
   TError = ErrorType<unknown>,
 >(
   options: {
     query: Partial<
       UseQueryOptions<
-        Awaited<ReturnType<typeof getCoursesCoursesGet>>,
+        Awaited<ReturnType<typeof getCoursesApiCoursesGet>>,
         TError,
         TData
       >
     > &
       Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getCoursesCoursesGet>>,
+          Awaited<ReturnType<typeof getCoursesApiCoursesGet>>,
           TError,
-          Awaited<ReturnType<typeof getCoursesCoursesGet>>
+          Awaited<ReturnType<typeof getCoursesApiCoursesGet>>
         >,
         "initialData"
       >;
@@ -138,23 +147,23 @@ export function useGetCoursesCoursesGet<
 ): DefinedUseQueryResult<TData, TError> & {
   queryKey: DataTag<QueryKey, TData, TError>;
 };
-export function useGetCoursesCoursesGet<
-  TData = Awaited<ReturnType<typeof getCoursesCoursesGet>>,
+export function useGetCoursesApiCoursesGet<
+  TData = Awaited<ReturnType<typeof getCoursesApiCoursesGet>>,
   TError = ErrorType<unknown>,
 >(
   options?: {
     query?: Partial<
       UseQueryOptions<
-        Awaited<ReturnType<typeof getCoursesCoursesGet>>,
+        Awaited<ReturnType<typeof getCoursesApiCoursesGet>>,
         TError,
         TData
       >
     > &
       Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getCoursesCoursesGet>>,
+          Awaited<ReturnType<typeof getCoursesApiCoursesGet>>,
           TError,
-          Awaited<ReturnType<typeof getCoursesCoursesGet>>
+          Awaited<ReturnType<typeof getCoursesApiCoursesGet>>
         >,
         "initialData"
       >;
@@ -164,14 +173,14 @@ export function useGetCoursesCoursesGet<
 ): UseQueryResult<TData, TError> & {
   queryKey: DataTag<QueryKey, TData, TError>;
 };
-export function useGetCoursesCoursesGet<
-  TData = Awaited<ReturnType<typeof getCoursesCoursesGet>>,
+export function useGetCoursesApiCoursesGet<
+  TData = Awaited<ReturnType<typeof getCoursesApiCoursesGet>>,
   TError = ErrorType<unknown>,
 >(
   options?: {
     query?: Partial<
       UseQueryOptions<
-        Awaited<ReturnType<typeof getCoursesCoursesGet>>,
+        Awaited<ReturnType<typeof getCoursesApiCoursesGet>>,
         TError,
         TData
       >
@@ -186,14 +195,14 @@ export function useGetCoursesCoursesGet<
  * @summary Get Courses
  */
 
-export function useGetCoursesCoursesGet<
-  TData = Awaited<ReturnType<typeof getCoursesCoursesGet>>,
+export function useGetCoursesApiCoursesGet<
+  TData = Awaited<ReturnType<typeof getCoursesApiCoursesGet>>,
   TError = ErrorType<unknown>,
 >(
   options?: {
     query?: Partial<
       UseQueryOptions<
-        Awaited<ReturnType<typeof getCoursesCoursesGet>>,
+        Awaited<ReturnType<typeof getCoursesApiCoursesGet>>,
         TError,
         TData
       >
@@ -204,7 +213,7 @@ export function useGetCoursesCoursesGet<
 ): UseQueryResult<TData, TError> & {
   queryKey: DataTag<QueryKey, TData, TError>;
 } {
-  const queryOptions = getGetCoursesCoursesGetQueryOptions(options);
+  const queryOptions = getGetCoursesApiCoursesGetQueryOptions(options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<
     TData,
@@ -219,32 +228,32 @@ export function useGetCoursesCoursesGet<
 /**
  * @summary Get Events
  */
-export const getEventsEventsGet = (
-  params: GetEventsEventsGetParams,
+export const getEventsApiEventsGet = (
+  params: GetEventsApiEventsGetParams,
   options?: SecondParameter<typeof api>,
   signal?: AbortSignal,
 ) => {
   return api<Event[]>(
-    { url: `/events`, method: "GET", params, signal },
+    { url: `/api/events`, method: "GET", params, signal },
     options,
   );
 };
 
-export const getGetEventsEventsGetQueryKey = (
-  params?: GetEventsEventsGetParams,
+export const getGetEventsApiEventsGetQueryKey = (
+  params?: GetEventsApiEventsGetParams,
 ) => {
-  return [`/events`, ...(params ? [params] : [])] as const;
+  return [`/api/events`, ...(params ? [params] : [])] as const;
 };
 
-export const getGetEventsEventsGetQueryOptions = <
-  TData = Awaited<ReturnType<typeof getEventsEventsGet>>,
+export const getGetEventsApiEventsGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof getEventsApiEventsGet>>,
   TError = ErrorType<HTTPValidationError>,
 >(
-  params: GetEventsEventsGetParams,
+  params: GetEventsApiEventsGetParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
-        Awaited<ReturnType<typeof getEventsEventsGet>>,
+        Awaited<ReturnType<typeof getEventsApiEventsGet>>,
         TError,
         TData
       >
@@ -255,42 +264,42 @@ export const getGetEventsEventsGetQueryOptions = <
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey =
-    queryOptions?.queryKey ?? getGetEventsEventsGetQueryKey(params);
+    queryOptions?.queryKey ?? getGetEventsApiEventsGetQueryKey(params);
 
   const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof getEventsEventsGet>>
-  > = ({ signal }) => getEventsEventsGet(params, requestOptions, signal);
+    Awaited<ReturnType<typeof getEventsApiEventsGet>>
+  > = ({ signal }) => getEventsApiEventsGet(params, requestOptions, signal);
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof getEventsEventsGet>>,
+    Awaited<ReturnType<typeof getEventsApiEventsGet>>,
     TError,
     TData
   > & { queryKey: DataTag<QueryKey, TData, TError> };
 };
 
-export type GetEventsEventsGetQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getEventsEventsGet>>
+export type GetEventsApiEventsGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getEventsApiEventsGet>>
 >;
-export type GetEventsEventsGetQueryError = ErrorType<HTTPValidationError>;
+export type GetEventsApiEventsGetQueryError = ErrorType<HTTPValidationError>;
 
-export function useGetEventsEventsGet<
-  TData = Awaited<ReturnType<typeof getEventsEventsGet>>,
+export function useGetEventsApiEventsGet<
+  TData = Awaited<ReturnType<typeof getEventsApiEventsGet>>,
   TError = ErrorType<HTTPValidationError>,
 >(
-  params: GetEventsEventsGetParams,
+  params: GetEventsApiEventsGetParams,
   options: {
     query: Partial<
       UseQueryOptions<
-        Awaited<ReturnType<typeof getEventsEventsGet>>,
+        Awaited<ReturnType<typeof getEventsApiEventsGet>>,
         TError,
         TData
       >
     > &
       Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getEventsEventsGet>>,
+          Awaited<ReturnType<typeof getEventsApiEventsGet>>,
           TError,
-          Awaited<ReturnType<typeof getEventsEventsGet>>
+          Awaited<ReturnType<typeof getEventsApiEventsGet>>
         >,
         "initialData"
       >;
@@ -300,24 +309,24 @@ export function useGetEventsEventsGet<
 ): DefinedUseQueryResult<TData, TError> & {
   queryKey: DataTag<QueryKey, TData, TError>;
 };
-export function useGetEventsEventsGet<
-  TData = Awaited<ReturnType<typeof getEventsEventsGet>>,
+export function useGetEventsApiEventsGet<
+  TData = Awaited<ReturnType<typeof getEventsApiEventsGet>>,
   TError = ErrorType<HTTPValidationError>,
 >(
-  params: GetEventsEventsGetParams,
+  params: GetEventsApiEventsGetParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
-        Awaited<ReturnType<typeof getEventsEventsGet>>,
+        Awaited<ReturnType<typeof getEventsApiEventsGet>>,
         TError,
         TData
       >
     > &
       Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getEventsEventsGet>>,
+          Awaited<ReturnType<typeof getEventsApiEventsGet>>,
           TError,
-          Awaited<ReturnType<typeof getEventsEventsGet>>
+          Awaited<ReturnType<typeof getEventsApiEventsGet>>
         >,
         "initialData"
       >;
@@ -327,15 +336,15 @@ export function useGetEventsEventsGet<
 ): UseQueryResult<TData, TError> & {
   queryKey: DataTag<QueryKey, TData, TError>;
 };
-export function useGetEventsEventsGet<
-  TData = Awaited<ReturnType<typeof getEventsEventsGet>>,
+export function useGetEventsApiEventsGet<
+  TData = Awaited<ReturnType<typeof getEventsApiEventsGet>>,
   TError = ErrorType<HTTPValidationError>,
 >(
-  params: GetEventsEventsGetParams,
+  params: GetEventsApiEventsGetParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
-        Awaited<ReturnType<typeof getEventsEventsGet>>,
+        Awaited<ReturnType<typeof getEventsApiEventsGet>>,
         TError,
         TData
       >
@@ -350,15 +359,15 @@ export function useGetEventsEventsGet<
  * @summary Get Events
  */
 
-export function useGetEventsEventsGet<
-  TData = Awaited<ReturnType<typeof getEventsEventsGet>>,
+export function useGetEventsApiEventsGet<
+  TData = Awaited<ReturnType<typeof getEventsApiEventsGet>>,
   TError = ErrorType<HTTPValidationError>,
 >(
-  params: GetEventsEventsGetParams,
+  params: GetEventsApiEventsGetParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
-        Awaited<ReturnType<typeof getEventsEventsGet>>,
+        Awaited<ReturnType<typeof getEventsApiEventsGet>>,
         TError,
         TData
       >
@@ -369,7 +378,7 @@ export function useGetEventsEventsGet<
 ): UseQueryResult<TData, TError> & {
   queryKey: DataTag<QueryKey, TData, TError>;
 } {
-  const queryOptions = getGetEventsEventsGetQueryOptions(params, options);
+  const queryOptions = getGetEventsApiEventsGetQueryOptions(params, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<
     TData,
@@ -384,32 +393,32 @@ export function useGetEventsEventsGet<
 /**
  * @summary Export Calendar
  */
-export const exportCalendarExportIcsGet = (
-  params: ExportCalendarExportIcsGetParams,
+export const exportCalendarApiExportIcsGet = (
+  params: ExportCalendarApiExportIcsGetParams,
   options?: SecondParameter<typeof api>,
   signal?: AbortSignal,
 ) => {
   return api<void>(
-    { url: `/export.ics`, method: "GET", params, signal },
+    { url: `/api/export.ics`, method: "GET", params, signal },
     options,
   );
 };
 
-export const getExportCalendarExportIcsGetQueryKey = (
-  params?: ExportCalendarExportIcsGetParams,
+export const getExportCalendarApiExportIcsGetQueryKey = (
+  params?: ExportCalendarApiExportIcsGetParams,
 ) => {
-  return [`/export.ics`, ...(params ? [params] : [])] as const;
+  return [`/api/export.ics`, ...(params ? [params] : [])] as const;
 };
 
-export const getExportCalendarExportIcsGetQueryOptions = <
-  TData = Awaited<ReturnType<typeof exportCalendarExportIcsGet>>,
+export const getExportCalendarApiExportIcsGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof exportCalendarApiExportIcsGet>>,
   TError = ErrorType<HTTPValidationError>,
 >(
-  params: ExportCalendarExportIcsGetParams,
+  params: ExportCalendarApiExportIcsGetParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
-        Awaited<ReturnType<typeof exportCalendarExportIcsGet>>,
+        Awaited<ReturnType<typeof exportCalendarApiExportIcsGet>>,
         TError,
         TData
       >
@@ -420,44 +429,44 @@ export const getExportCalendarExportIcsGetQueryOptions = <
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey =
-    queryOptions?.queryKey ?? getExportCalendarExportIcsGetQueryKey(params);
+    queryOptions?.queryKey ?? getExportCalendarApiExportIcsGetQueryKey(params);
 
   const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof exportCalendarExportIcsGet>>
+    Awaited<ReturnType<typeof exportCalendarApiExportIcsGet>>
   > = ({ signal }) =>
-    exportCalendarExportIcsGet(params, requestOptions, signal);
+    exportCalendarApiExportIcsGet(params, requestOptions, signal);
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof exportCalendarExportIcsGet>>,
+    Awaited<ReturnType<typeof exportCalendarApiExportIcsGet>>,
     TError,
     TData
   > & { queryKey: DataTag<QueryKey, TData, TError> };
 };
 
-export type ExportCalendarExportIcsGetQueryResult = NonNullable<
-  Awaited<ReturnType<typeof exportCalendarExportIcsGet>>
+export type ExportCalendarApiExportIcsGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof exportCalendarApiExportIcsGet>>
 >;
-export type ExportCalendarExportIcsGetQueryError =
+export type ExportCalendarApiExportIcsGetQueryError =
   ErrorType<HTTPValidationError>;
 
-export function useExportCalendarExportIcsGet<
-  TData = Awaited<ReturnType<typeof exportCalendarExportIcsGet>>,
+export function useExportCalendarApiExportIcsGet<
+  TData = Awaited<ReturnType<typeof exportCalendarApiExportIcsGet>>,
   TError = ErrorType<HTTPValidationError>,
 >(
-  params: ExportCalendarExportIcsGetParams,
+  params: ExportCalendarApiExportIcsGetParams,
   options: {
     query: Partial<
       UseQueryOptions<
-        Awaited<ReturnType<typeof exportCalendarExportIcsGet>>,
+        Awaited<ReturnType<typeof exportCalendarApiExportIcsGet>>,
         TError,
         TData
       >
     > &
       Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof exportCalendarExportIcsGet>>,
+          Awaited<ReturnType<typeof exportCalendarApiExportIcsGet>>,
           TError,
-          Awaited<ReturnType<typeof exportCalendarExportIcsGet>>
+          Awaited<ReturnType<typeof exportCalendarApiExportIcsGet>>
         >,
         "initialData"
       >;
@@ -467,24 +476,24 @@ export function useExportCalendarExportIcsGet<
 ): DefinedUseQueryResult<TData, TError> & {
   queryKey: DataTag<QueryKey, TData, TError>;
 };
-export function useExportCalendarExportIcsGet<
-  TData = Awaited<ReturnType<typeof exportCalendarExportIcsGet>>,
+export function useExportCalendarApiExportIcsGet<
+  TData = Awaited<ReturnType<typeof exportCalendarApiExportIcsGet>>,
   TError = ErrorType<HTTPValidationError>,
 >(
-  params: ExportCalendarExportIcsGetParams,
+  params: ExportCalendarApiExportIcsGetParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
-        Awaited<ReturnType<typeof exportCalendarExportIcsGet>>,
+        Awaited<ReturnType<typeof exportCalendarApiExportIcsGet>>,
         TError,
         TData
       >
     > &
       Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof exportCalendarExportIcsGet>>,
+          Awaited<ReturnType<typeof exportCalendarApiExportIcsGet>>,
           TError,
-          Awaited<ReturnType<typeof exportCalendarExportIcsGet>>
+          Awaited<ReturnType<typeof exportCalendarApiExportIcsGet>>
         >,
         "initialData"
       >;
@@ -494,15 +503,15 @@ export function useExportCalendarExportIcsGet<
 ): UseQueryResult<TData, TError> & {
   queryKey: DataTag<QueryKey, TData, TError>;
 };
-export function useExportCalendarExportIcsGet<
-  TData = Awaited<ReturnType<typeof exportCalendarExportIcsGet>>,
+export function useExportCalendarApiExportIcsGet<
+  TData = Awaited<ReturnType<typeof exportCalendarApiExportIcsGet>>,
   TError = ErrorType<HTTPValidationError>,
 >(
-  params: ExportCalendarExportIcsGetParams,
+  params: ExportCalendarApiExportIcsGetParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
-        Awaited<ReturnType<typeof exportCalendarExportIcsGet>>,
+        Awaited<ReturnType<typeof exportCalendarApiExportIcsGet>>,
         TError,
         TData
       >
@@ -517,15 +526,15 @@ export function useExportCalendarExportIcsGet<
  * @summary Export Calendar
  */
 
-export function useExportCalendarExportIcsGet<
-  TData = Awaited<ReturnType<typeof exportCalendarExportIcsGet>>,
+export function useExportCalendarApiExportIcsGet<
+  TData = Awaited<ReturnType<typeof exportCalendarApiExportIcsGet>>,
   TError = ErrorType<HTTPValidationError>,
 >(
-  params: ExportCalendarExportIcsGetParams,
+  params: ExportCalendarApiExportIcsGetParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
-        Awaited<ReturnType<typeof exportCalendarExportIcsGet>>,
+        Awaited<ReturnType<typeof exportCalendarApiExportIcsGet>>,
         TError,
         TData
       >
@@ -536,7 +545,337 @@ export function useExportCalendarExportIcsGet<
 ): UseQueryResult<TData, TError> & {
   queryKey: DataTag<QueryKey, TData, TError>;
 } {
-  const queryOptions = getExportCalendarExportIcsGetQueryOptions(
+  const queryOptions = getExportCalendarApiExportIcsGetQueryOptions(
+    params,
+    options,
+  );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * Returns the URL to redirect users to for Google OAuth login
+Implements PKCE flow for added security
+ * @summary Google Auth Login
+ */
+export const googleAuthLoginApiAuthLoginGet = (
+  options?: SecondParameter<typeof api>,
+  signal?: AbortSignal,
+) => {
+  return api<unknown>(
+    { url: `/api/auth-login`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getGoogleAuthLoginApiAuthLoginGetQueryKey = () => {
+  return [`/api/auth-login`] as const;
+};
+
+export const getGoogleAuthLoginApiAuthLoginGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof googleAuthLoginApiAuthLoginGet>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<
+      Awaited<ReturnType<typeof googleAuthLoginApiAuthLoginGet>>,
+      TError,
+      TData
+    >
+  >;
+  request?: SecondParameter<typeof api>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGoogleAuthLoginApiAuthLoginGetQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof googleAuthLoginApiAuthLoginGet>>
+  > = ({ signal }) => googleAuthLoginApiAuthLoginGet(requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof googleAuthLoginApiAuthLoginGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GoogleAuthLoginApiAuthLoginGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof googleAuthLoginApiAuthLoginGet>>
+>;
+export type GoogleAuthLoginApiAuthLoginGetQueryError = ErrorType<unknown>;
+
+export function useGoogleAuthLoginApiAuthLoginGet<
+  TData = Awaited<ReturnType<typeof googleAuthLoginApiAuthLoginGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof googleAuthLoginApiAuthLoginGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof googleAuthLoginApiAuthLoginGet>>,
+          TError,
+          Awaited<ReturnType<typeof googleAuthLoginApiAuthLoginGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof api>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGoogleAuthLoginApiAuthLoginGet<
+  TData = Awaited<ReturnType<typeof googleAuthLoginApiAuthLoginGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof googleAuthLoginApiAuthLoginGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof googleAuthLoginApiAuthLoginGet>>,
+          TError,
+          Awaited<ReturnType<typeof googleAuthLoginApiAuthLoginGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof api>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGoogleAuthLoginApiAuthLoginGet<
+  TData = Awaited<ReturnType<typeof googleAuthLoginApiAuthLoginGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof googleAuthLoginApiAuthLoginGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof api>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Google Auth Login
+ */
+
+export function useGoogleAuthLoginApiAuthLoginGet<
+  TData = Awaited<ReturnType<typeof googleAuthLoginApiAuthLoginGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof googleAuthLoginApiAuthLoginGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof api>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getGoogleAuthLoginApiAuthLoginGetQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * Handles the redirect from Google OAuth
+Exchanges authorization code for tokens using PKCE
+ * @summary Google Auth Redirect
+ */
+export const googleAuthRedirectApiAuthRedirectGet = (
+  params: GoogleAuthRedirectApiAuthRedirectGetParams,
+  options?: SecondParameter<typeof api>,
+  signal?: AbortSignal,
+) => {
+  return api<unknown>(
+    { url: `/api/auth-redirect`, method: "GET", params, signal },
+    options,
+  );
+};
+
+export const getGoogleAuthRedirectApiAuthRedirectGetQueryKey = (
+  params?: GoogleAuthRedirectApiAuthRedirectGetParams,
+) => {
+  return [`/api/auth-redirect`, ...(params ? [params] : [])] as const;
+};
+
+export const getGoogleAuthRedirectApiAuthRedirectGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof googleAuthRedirectApiAuthRedirectGet>>,
+  TError = ErrorType<HTTPValidationError>,
+>(
+  params: GoogleAuthRedirectApiAuthRedirectGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof googleAuthRedirectApiAuthRedirectGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof api>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getGoogleAuthRedirectApiAuthRedirectGetQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof googleAuthRedirectApiAuthRedirectGet>>
+  > = ({ signal }) =>
+    googleAuthRedirectApiAuthRedirectGet(params, requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof googleAuthRedirectApiAuthRedirectGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GoogleAuthRedirectApiAuthRedirectGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof googleAuthRedirectApiAuthRedirectGet>>
+>;
+export type GoogleAuthRedirectApiAuthRedirectGetQueryError =
+  ErrorType<HTTPValidationError>;
+
+export function useGoogleAuthRedirectApiAuthRedirectGet<
+  TData = Awaited<ReturnType<typeof googleAuthRedirectApiAuthRedirectGet>>,
+  TError = ErrorType<HTTPValidationError>,
+>(
+  params: GoogleAuthRedirectApiAuthRedirectGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof googleAuthRedirectApiAuthRedirectGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof googleAuthRedirectApiAuthRedirectGet>>,
+          TError,
+          Awaited<ReturnType<typeof googleAuthRedirectApiAuthRedirectGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof api>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGoogleAuthRedirectApiAuthRedirectGet<
+  TData = Awaited<ReturnType<typeof googleAuthRedirectApiAuthRedirectGet>>,
+  TError = ErrorType<HTTPValidationError>,
+>(
+  params: GoogleAuthRedirectApiAuthRedirectGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof googleAuthRedirectApiAuthRedirectGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof googleAuthRedirectApiAuthRedirectGet>>,
+          TError,
+          Awaited<ReturnType<typeof googleAuthRedirectApiAuthRedirectGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof api>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGoogleAuthRedirectApiAuthRedirectGet<
+  TData = Awaited<ReturnType<typeof googleAuthRedirectApiAuthRedirectGet>>,
+  TError = ErrorType<HTTPValidationError>,
+>(
+  params: GoogleAuthRedirectApiAuthRedirectGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof googleAuthRedirectApiAuthRedirectGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof api>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Google Auth Redirect
+ */
+
+export function useGoogleAuthRedirectApiAuthRedirectGet<
+  TData = Awaited<ReturnType<typeof googleAuthRedirectApiAuthRedirectGet>>,
+  TError = ErrorType<HTTPValidationError>,
+>(
+  params: GoogleAuthRedirectApiAuthRedirectGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof googleAuthRedirectApiAuthRedirectGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof api>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getGoogleAuthRedirectApiAuthRedirectGetQueryOptions(
     params,
     options,
   );
