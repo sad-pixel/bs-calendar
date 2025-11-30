@@ -1,14 +1,24 @@
+import base64
 import datetime
+import hashlib
+import json
+import os
 from typing import Annotated, List, Optional
+from urllib.parse import urlencode
 
 import icalendar
 import recurring_ical_events
+import requests as r
 import uvicorn
 from fastapi import Depends, FastAPI, Query, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
+from google.auth.transport import requests
+from google.oauth2 import id_token
 from pydantic import BaseModel
 
+from config import settings
 from db.connection import get_querier
 from db.queries import Querier
 from middleware import FixListQueryParamsMiddleware
@@ -111,7 +121,8 @@ def get_events(
             ).between(filter_params.start_at, filter_params.end_at)
         ]
         all_events = all_events + events
-    return all_events
+    # Sort all events by start_at before returning
+    return sorted(all_events, key=lambda event: event["start_at"])
 
 
 class ExportFilter(BaseModel):
@@ -141,5 +152,85 @@ def export_calendar(
     return Response(cal.to_ical(), media_type="text/calendar")
 
 
+@app.get("/api/auth-login")
+def google_auth_login():
+    """
+    Returns the URL to redirect users to for Google OAuth login
+    Implements PKCE flow for added security
+    """
+    # Generate code verifier (random string between 43-128 chars)
+    code_verifier = base64.urlsafe_b64encode(os.urandom(40)).decode("utf-8")
+    code_verifier = code_verifier.replace("=", "")  # Remove padding
+
+    # Generate code challenge from verifier using SHA256
+    code_challenge = hashlib.sha256(code_verifier.encode("utf-8")).digest()
+    code_challenge = base64.urlsafe_b64encode(code_challenge).decode("utf-8")
+    code_challenge = code_challenge.replace("=", "")  # Remove padding
+
+    # Store code_verifier in session or as a cookie
+    # For this example, we'll include it in the state parameter
+    state = base64.urlsafe_b64encode(
+        json.dumps({"code_verifier": code_verifier}).encode()
+    ).decode("utf-8")
+
+    # Build OAuth URL with PKCE parameters
+    params = {
+        "client_id": settings.google_client_id,
+        "response_type": "code",
+        "scope": "openid email profile",
+        "redirect_uri": settings.google_redirect_url,
+        "prompt": "select_account",
+        "state": state,
+        "code_challenge": code_challenge,
+        "code_challenge_method": "S256",
+    }
+
+    google_oauth_url = (
+        f"https://accounts.google.com/o/oauth2/v2/auth?{urlencode(params)}"
+    )
+
+    return RedirectResponse(url=google_oauth_url)
+
+
+@app.get("/api/auth-redirect")
+async def google_auth_redirect(code: str, state: str = None):
+    """
+    Handles the redirect from Google OAuth
+    Exchanges authorization code for tokens using PKCE
+    """
+    # Extract code_verifier from state
+    try:
+        decoded_state = json.loads(base64.urlsafe_b64decode(state).decode("utf-8"))
+        code_verifier = decoded_state.get("code_verifier")
+    except:
+        return {"error": "Invalid state parameter"}
+
+    # Exchange authorization code for tokens
+    token_url = "https://oauth2.googleapis.com/token"
+    token_data = {
+        "client_id": settings.google_client_id,
+        "client_secret": settings.google_client_secret,
+        "code": code,
+        "code_verifier": code_verifier,
+        "grant_type": "authorization_code",
+        "redirect_uri": settings.google_redirect_url,
+    }
+
+    response = r.post(token_url, data=token_data)
+    token_response = response.json()
+
+    if "error" in token_response:
+        return {"error": token_response.get("error")}
+
+    # Get user info using the ID token
+    id_token_value = token_response.get("id_token")
+    user_data = id_token.verify_oauth2_token(
+        id_token_value, requests.Request(), settings.google_client_id
+    )
+
+    # Return user info as JSON
+    return user_data
+
+
 if __name__ == "__main__":
-    uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("api:app", host=settings.host, port=settings.port, reload=True)
