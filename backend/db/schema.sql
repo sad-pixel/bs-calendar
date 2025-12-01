@@ -21,7 +21,7 @@ CREATE TABLE users (
     last_name TEXT,
     picture TEXT,
     email TEXT UNIQUE,
-    calendar_token TEXT UNIQUE,
+    calendar_token TEXT UNIQUE NOT NULL DEFAULT (lower(hex(randomblob(32)))),
     last_login_at TEXT,
     last_calendar_sync_at TEXT
 );
